@@ -57,14 +57,15 @@ create table if not exists public.dogs (
 -- HEALTH — Symptom logs
 -- ---------------------------------------------------------------
 create table if not exists public.symptom_logs (
-  id           uuid primary key default gen_random_uuid(),
-  dog_id       uuid not null references public.dogs(id) on delete cascade,
-  logged_at    timestamptz default now(),
-  symptoms     jsonb not null,
+  id            uuid primary key default gen_random_uuid(),
+  dog_id        uuid not null references public.dogs(id) on delete cascade,
+  logged_at     timestamptz default now(),
+  symptoms      jsonb not null,
   duration_days integer default 1,
-  prediction   text,
-  severity     text check (severity in ('mild', 'moderate', 'severe', 'emergency')),
-  confidence   decimal(4,3)
+  temperature   decimal(4,1),
+  prediction    text,
+  severity      text check (severity in ('mild', 'moderate', 'severe', 'emergency')),
+  confidence    decimal(4,3)
 );
 
 -- ---------------------------------------------------------------
@@ -128,6 +129,19 @@ create table if not exists public.mood_logs (
 );
 
 -- ---------------------------------------------------------------
+-- TRACKING — Activity logs
+-- ---------------------------------------------------------------
+create table if not exists public.activity_logs (
+  id            uuid primary key default gen_random_uuid(),
+  dog_id        uuid not null references public.dogs(id) on delete cascade,
+  logged_at     timestamptz default now(),
+  walk_minutes  integer default 0,
+  play_minutes  integer default 0,
+  energy_level  text check (energy_level in ('low', 'normal', 'high')) not null,
+  notes         text
+);
+
+-- ---------------------------------------------------------------
 -- REPRODUCTIVE — Heat cycles (female dogs only)
 -- ---------------------------------------------------------------
 create table if not exists public.heat_cycles (
@@ -179,8 +193,9 @@ alter table public.feeding_logs enable row level security;
 alter table public.vet_visits   enable row level security;
 alter table public.vaccines     enable row level security;
 alter table public.weight_logs  enable row level security;
-alter table public.mood_logs    enable row level security;
-alter table public.heat_cycles  enable row level security;
+alter table public.mood_logs      enable row level security;
+alter table public.activity_logs  enable row level security;
+alter table public.heat_cycles    enable row level security;
 alter table public.litters      enable row level security;
 alter table public.puppies      enable row level security;
 
@@ -211,6 +226,9 @@ create policy "weight_logs_own" on public.weight_logs
 create policy "mood_logs_own" on public.mood_logs
   using (dog_id in (select id from public.dogs where user_id = auth.uid()));
 
+create policy "activity_logs_own" on public.activity_logs
+  using (dog_id in (select id from public.dogs where user_id = auth.uid()));
+
 create policy "heat_cycles_own" on public.heat_cycles
   using (dog_id in (select id from public.dogs where user_id = auth.uid()));
 
@@ -231,6 +249,7 @@ create index if not exists idx_vet_visits_dog_id     on public.vet_visits(dog_id
 create index if not exists idx_vaccines_dog_id       on public.vaccines(dog_id);
 create index if not exists idx_weight_logs_dog_id    on public.weight_logs(dog_id);
 create index if not exists idx_mood_logs_dog_id      on public.mood_logs(dog_id);
+create index if not exists idx_activity_logs_dog_id  on public.activity_logs(dog_id);
 create index if not exists idx_heat_cycles_dog_id    on public.heat_cycles(dog_id);
 create index if not exists idx_litters_mother        on public.litters(mother_dog_id);
 
